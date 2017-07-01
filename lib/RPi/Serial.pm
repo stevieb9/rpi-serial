@@ -4,96 +4,145 @@ use 5.006;
 use strict;
 use warnings;
 
-=head1 NAME
-
-RPi::Serial - The great new RPi::Serial!
-
-=head1 VERSION
-
-Version 0.01
-
-=cut
+use parent 'WiringPi::API';
 
 our $VERSION = '0.01';
 
+sub new {
+    my ($class, $device, $baud) = @_;
+    my $self = bless {}, $class;
+    $self->fd($self->serial_open($device, $baud));
+    return $self;
+}
+sub close {
+    $_[0]->serial_close($_[0]->fd);
+}
+sub avail {
+    return $_[0]->serial_data_avail($_[0]->fd);
+}
+sub fd {
+    my $self = shift;
+    $self->{fd} = shift if @_;
+    return $self->{fd} || -1;
+}
+sub flush {
+    $_[0]->serial_flush($_[0]->fd);
+}
+sub putc {
+    $_[0]->serial_put_char($_[0]->fd, $_[1]);
+}
+sub puts {
+    $_[0]->serial_puts($_[0]->fd, $_[1]);
+}
+sub getc {
+    return $_[0]->serial_get_char($_[0]->fd);
+}
+sub gets {
+    return $_[0]->serial_gets($_[0]->fd, $_[1]);
+}
+
+sub __placeholder {} # vim folds
+1;
+
+=head1 NAME
+
+RPi::Serial - Basic read/write interface to a serial port
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
     use RPi::Serial;
 
-    my $foo = RPi::Serial->new();
-    ...
+    my $dev  = "/dev/ttyAMA0";
+    my $baud = 115200;
+    
+    my $ser = RPi::Serial->new($dev, $baud);
 
-=head1 EXPORT
+    $ser->putc(5);
+    $ser->puts("hello, world!");
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+    my $char = $ser->getc;
 
-=head1 SUBROUTINES/METHODS
+    my $num_bytes = 12;
+    my $str  = $ser->gets($num_bytes);
 
-=head2 function1
+    $ser->flush;
 
-=cut
+    my $bytes_available = $ser->avail;
 
-sub function1 {
-}
+    $ser->close;
 
-=head2 function2
+=head1 METHODS
 
-=cut
+=head2 new($device, $baud);
 
-sub function2 {
-}
+Opens the specified serial port at the specified baud rate, and returns a new
+L<RPi::Serial> object.
+
+Parameters:
+
+    $device
+
+Mandatory, String: The serial device to open (eg: C<"/dev/ttyAMA0">.
+
+    $baud
+
+Mandatory, Integer: A valud baud rate to use.
+
+=head2 close
+
+Closes an already open serial device.
+
+=head2 avail
+
+Returns the number of bytes waiting to be read if any.
+
+=head2 flush
+
+Flush any data currently in the serial buffer.
+
+=head2 fd
+
+Returns the C<ioctl> file descriptor for the current serial object.
+
+=head2 getc
+
+Retrieve a single character from the serial port.
+
+=head2 gets($num_bytes)
+
+Read a specified number of bytes into a string.
+
+Parameters:
+
+    $num_bytes
+
+Mandatory, Integer; The number of bytes to read. If this number is larger than
+what is available to be read, a 10 second timeout will briefly hand your
+application.
+
+=head2 putc($char)
+
+Writes a single character to the serial device.
+
+Parameters:
+
+    $char
+
+Mandatory, Unsigned Char: The character to write to the port.
+
+=head2 puts($string)
+
+Write a character string to the serial device.
+
+Parameters:
+
+    $string
+
+Mandatory, String: Whatever you want to write to the serial line.
 
 =head1 AUTHOR
 
 Steve Bertrand, C<< <steveb at cpan.org> >>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-rpi-serial at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=RPi-Serial>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
-
-
-
-
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc RPi::Serial
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=RPi-Serial>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/RPi-Serial>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/RPi-Serial>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/RPi-Serial/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
 
 =head1 LICENSE AND COPYRIGHT
 
@@ -104,8 +153,3 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See L<http://dev.perl.org/licenses/> for more information.
-
-
-=cut
-
-1; # End of RPi::Serial
