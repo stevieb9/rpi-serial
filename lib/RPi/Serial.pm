@@ -40,7 +40,9 @@ sub getc {
 sub gets {
     return $_[0]->serial_gets($_[0]->fd, $_[1]);
 }
-
+sub DESTROY {
+    $_[0]->serial_close($_[0]->fd);
+}
 sub __placeholder {} # vim folds
 1;
 
