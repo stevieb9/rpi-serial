@@ -23,7 +23,7 @@ sub avail {
 sub fd {
     my $self = shift;
     $self->{fd} = shift if @_;
-    return $self->{fd} || -1;
+    return $self->{fd};
 }
 sub flush {
     $_[0]->serial_flush($_[0]->fd);
