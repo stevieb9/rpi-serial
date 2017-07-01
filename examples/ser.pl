@@ -12,12 +12,11 @@ print "char: $c\n";
 
 $s->puts("hello world");
 
-my $str = $s->gets(8);
+my $str = $s->gets(11);
 
 print "$str\n";
-
+__END__
 for (1..100){
     $s->putc($_);
     print $s->getc . "\n";
 }
-
