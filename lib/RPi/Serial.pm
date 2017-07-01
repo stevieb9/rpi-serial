@@ -6,7 +6,7 @@ use warnings;
 
 use parent 'WiringPi::API';
 
-our $VERSION = '0.02';
+our $VERSION = '2.3602';
 
 sub new {
     my ($class, $device, $baud) = @_;
