@@ -73,6 +73,24 @@ RPi::Serial - Basic read/write interface to a serial port
 
     $ser->close;
 
+=head1 DESCRIPTION
+
+Provides basic read and write functionality on the Raspberry Pi's GPIO serial
+interface (GPIO pins 14 and 15).
+
+=head1 WARNING
+
+In order to use GPIO pins 14 and 15 as a serial interface on the Raspberry Pi,
+you need to disable the built-in Bluetooth adaptor. This distribution will not
+operate correctly without this being done.
+
+To disable Bluetooth on the Pi, edit the C</boot/config.txt>, and add the
+following line:
+
+    dtoverlay=pi3-disable-bt-overlay
+
+Save the file, then reboot the Pi.
+
 =head1 METHODS
 
 =head2 new($device, $baud);
@@ -148,7 +166,7 @@ Steve Bertrand, C<< <steveb at cpan.org> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2017 Steve Bertrand.
+Copyright 2018 Steve Bertrand.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
