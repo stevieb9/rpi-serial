@@ -1,7 +1,8 @@
 Revision history for RPi-Serial
 
 2.3604 UNREL
-        -
+        - removed requirement of WiringPi::API, all low-level operational code
+          is now incorporated into a local XS file
 
 2.3603  2018-02-09
         - added WARNING section in POD about the requirement of disabling
