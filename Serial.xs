@@ -2,14 +2,14 @@
 #include "perl.h"
 #include "XSUB.h"
 
-#include <stdio.h>    /* Standard input/output definitions */
+#include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>   /* Standard types */
-#include <string.h>   /* String function definitions */
-#include <unistd.h>   /* UNIX standard function definitions */
-#include <fcntl.h>    /* File control definitions */
-#include <errno.h>    /* Error number definitions */
-#include <termios.h>  /* POSIX terminal control definitions */
+#include <stdint.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <termios.h>
 #include <sys/ioctl.h>
 #include <getopt.h>
 
@@ -40,12 +40,12 @@ int tty_puts(int fd, const char* str){
 }
 
 int tty_getc (int fd){
-  uint8_t x ;
+  uint8_t x;
 
   if (read (fd, &x, 1) != 1)
-    return -1 ;
+    return -1;
 
-  return ((int)x) & 0xFF ;
+  return ((int)x) & 0xFF;
 }
 
 char* tty_gets(int fd, char* buf, int nbytes){
@@ -66,14 +66,14 @@ char* tty_gets(int fd, char* buf, int nbytes){
     return buf;
 }
 
-int tty_open(const char* serialport, int baud){
+int tty_open(const char *serialport, int baud){
     struct termios toptions;
     int fd;
 
     fd = open(serialport, O_RDWR | O_NOCTTY | O_NDELAY);
 
     if (fd == -1)  {
-        perror("init_serialport: Unable to open port ");
+        perror("open(): Unable to open port ");
         return -1;
     }
 
@@ -81,7 +81,7 @@ int tty_open(const char* serialport, int baud){
         perror("init_serialport: Couldn't get term attributes");
         return -1;
     }
-    speed_t brate = baud; // let you override switch below if needed
+    speed_t brate = baud;
     switch(baud) {
     case 4800:   brate=B4800;   break;
     case 9600:   brate=B9600;   break;
@@ -96,6 +96,7 @@ int tty_open(const char* serialport, int baud){
     case 57600:  brate=B57600;  break;
     case 115200: brate=B115200; break;
     }
+
     cfsetispeed(&toptions, brate);
     cfsetospeed(&toptions, brate);
 
@@ -113,7 +114,6 @@ int tty_open(const char* serialport, int baud){
     toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
     toptions.c_oflag &= ~OPOST; // make raw
 
-    // see: http://unixwiz.net/techtips/termios-vmin-vtime.html
     toptions.c_cc[VMIN]  = 0;
     toptions.c_cc[VTIME] = 10;
 
@@ -128,7 +128,6 @@ int tty_open(const char* serialport, int baud){
 MODULE = RPi::Serial  PACKAGE = RPi::Serial
 
 PROTOTYPES: DISABLE
-
 
 int
 tty_available (fd)
