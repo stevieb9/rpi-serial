@@ -7,8 +7,18 @@ my $s = RPi::Serial->new('/dev/ttyS0', 9600);
 
 my $data;
 
-for ('[[[hello]]]', '!', '[[[world]]]'){
+for (qw(x [[[hello]]] ! [[[world]]] a b)){
+    # x     = reset because no start marker yet
+    # [[[   = start data ok
+    # hello = data
+    # ]]]   = end data ok
+    # !     = RX reset command
+    # [[[   = start data ok
+    # world = data
+    # ]]]   = end data ok
+    # a     = no start markers set, reset
+    # b     = no start markers set, reset
+
     $s->puts($_);
-    #select(undef, undef, undef, 0.3);
 }
 

@@ -28,6 +28,10 @@ sub rx {
         _reset();
         return;
     }
+    if (chr($c) eq RX_RESET){
+        _reset();
+        return;
+    }
     if (chr($c) eq $start){
         $rx_started++;
         return;
