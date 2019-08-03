@@ -5,8 +5,6 @@ use RPi::Serial;
 
 my $s = RPi::Serial->new('/dev/ttyS0', 9600);
 
-my $data;
-
 for (qw(x [[[hello]]] ! [[[world]]] a b)){
     # x     = no start marker seen yet, reset
     # [[[   = start data ok
@@ -18,6 +16,12 @@ for (qw(x [[[hello]]] ! [[[world]]] a b)){
     # ]]]   = end data ok
     # a     = no start marker set, reset
     # b     = no start marker set, reset
+
+    #
+    # output at RX side should be:
+    # "hello"
+    # "world"
+    #
 
     $s->puts($_);
 }
