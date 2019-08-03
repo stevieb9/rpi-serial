@@ -1,7 +1,7 @@
 Revision history for RPi-Serial
 
-3.00 UNREL
-        -
+3.00    2019-08-02
+        - added the XS file to the distribution
 
 2.99    2019-08-02
         - removed requirement of WiringPi::API, all low-level operational code

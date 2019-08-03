@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <termios.h>
 #include <sys/ioctl.h>
-#include <getopt.h>
 
 void tty_close (int fd){
   printf("%d\n", fd);
