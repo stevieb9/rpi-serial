@@ -13,7 +13,6 @@
 #include <sys/ioctl.h>
 
 void tty_close (int fd){
-  printf("%d\n", fd);
   close (fd) ;
 }
 
