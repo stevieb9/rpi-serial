@@ -1,11 +1,6 @@
 use warnings;
 use strict;
 
-use constant {
-    DELIM_COUNT => 3,
-    RX_RESET    => '!'
-};
-
 use RPi::Serial;
 
 my $s = RPi::Serial->new('/dev/ttyUSB0', 9600);
@@ -15,20 +10,20 @@ my ($rx_started, $rx_ended) = (0, 0);
 
 while (1){
     if ($s->avail){
-        rx('[', ']');
+        rx(qw( [ ] 3 !));
     }
 }
 
 sub rx {
-    my ($start, $end) = @_;
+    my ($start, $end, $delim_count, $rx_reset) = @_;
 
     my $c = $s->getc;
 
-    if (chr($c) ne $start && ! $rx_started == DELIM_COUNT){
+    if (chr($c) ne $start && ! $rx_started == $delim_count){
         _reset();
         return;
     }
-    if (chr($c) eq RX_RESET){
+    if (chr($c) eq $rx_reset){
         _reset();
         return;
     }
@@ -36,13 +31,13 @@ sub rx {
         $rx_started++;
         return;
     }
-    if (chr($c) eq ']'){
+    if (chr($c) eq $end){
         $rx_ended++;
     }
-    if ($rx_started == DELIM_COUNT && ! $rx_ended){
+    if ($rx_started == $delim_count && ! $rx_ended){
         $data .= chr $c;
     }
-    if ($rx_started == DELIM_COUNT && $rx_ended == DELIM_COUNT){
+    if ($rx_started == $delim_count && $rx_ended == $delim_count){
         print "$data\n";
         _reset();
     }
