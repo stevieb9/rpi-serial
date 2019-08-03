@@ -10,14 +10,20 @@ my ($rx_started, $rx_ended) = (0, 0);
 
 while (1){
     if ($s->avail){
-        rx(qw( [ ] 3 !));
+        my $data = rx('[', ']', 3, '!');
+
+        if ($data){
+            print "$data\n";
+            rx_reset();
+        }
+
     }
 }
 
 sub rx {
     my ($start, $end, $delim_count, $rx_reset) = @_;
 
-    my $c = $s->getc;
+    my $c = $s->getc; # returns an ord() value perl-wise
 
     if (chr($c) ne $start && ! $rx_started == $delim_count){
         _reset();
@@ -38,11 +44,10 @@ sub rx {
         $data .= chr $c;
     }
     if ($rx_started == $delim_count && $rx_ended == $delim_count){
-        print "$data\n";
-        _reset();
+        return $data;
     }
 }
-sub _reset {
+sub rx_reset {
     $rx_started = 0;
     $rx_ended = 0;
     $data = '';
