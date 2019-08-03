@@ -39,7 +39,10 @@ sub getc {
     return tty_getc($_[0]->fd);
 }
 sub gets {
-    return tty_gets($_[0]->fd, $_[1]);
+    my $buf = "";
+    my $char_ptr = tty_gets($_[0]->fd, $buf, $_[1]);
+    my $unpacked = unpack "A*", $char_ptr;
+    return $unpacked;
 }
 sub DESTROY {
     tty_close($_[0]->fd);
