@@ -10,41 +10,40 @@ my ($rx_started, $rx_ended) = (0, 0);
 
 while (1){
     if ($s->avail){
-        my $data = rx('[', ']', 3, '!');
+        my $data_populated = rx('[', ']', 3, '!');
 
-        if ($data){
+        if ($data_populated){
             print "$data\n";
             rx_reset();
         }
-
     }
 }
 
 sub rx {
     my ($start, $end, $delim_count, $rx_reset) = @_;
 
-    my $c = $s->getc; # returns an ord() value perl-wise
+    my $c = chr($s->getc); # getc() returns the ord() val on a char* perl-wise
 
-    if (chr($c) ne $start && ! $rx_started == $delim_count){
-        _reset();
+    if ($c ne $start && ! $rx_started == $delim_count){
+        rx_reset();
         return;
     }
-    if (chr($c) eq $rx_reset){
-        _reset();
+    if ($c eq $rx_reset){
+        rx_reset();
         return;
     }
-    if (chr($c) eq $start){
+    if ($c eq $start){
         $rx_started++;
         return;
     }
-    if (chr($c) eq $end){
+    if ($c eq $end){
         $rx_ended++;
     }
     if ($rx_started == $delim_count && ! $rx_ended){
-        $data .= chr $c;
+        $data .= $c;
     }
     if ($rx_started == $delim_count && $rx_ended == $delim_count){
-        return $data;
+        return 1;
     }
 }
 sub rx_reset {
