@@ -44,8 +44,8 @@ sub gets {
     return $unpacked;
 }
 sub crc {
-    my ($data, $length) = @_;
-    return crc16($data, $length);
+    my ($self, $data) = @_;
+    return crc16($data, length($data));
 }
 sub DESTROY {
     tty_close($_[0]->fd);
@@ -167,6 +167,17 @@ Parameters:
     $string
 
 Mandatory, String: Whatever you want to write to the serial line.
+
+=head2 crc($string)
+
+Calculate and return a CRC-16 checksum. Uses local B<crc16.c> application to
+generate the CRC.
+
+Parameters:
+
+    $string
+
+Mandatory, String: The string to perform the checksum on.
 
 =head1 AUTHOR
 

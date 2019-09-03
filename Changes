@@ -1,7 +1,7 @@
 Revision history for RPi-Serial
 
 3.01 UNREL
-        -
+        - added crc() method/function for calculating CRCs
 
 3.00    2019-08-02
         - added the XS file to the distribution
