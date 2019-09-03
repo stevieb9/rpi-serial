@@ -11,9 +11,40 @@
 #include <errno.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+// #include "crc16.h"
+
+#define POLY 0x8408
+
+int crc15() {
+    printf("hello %d\n", 10);
+}
+
+unsigned short crc16(char *data_p, unsigned short length){
+      printf("%d\n", 5);
+      unsigned char i;
+      unsigned int data;
+      unsigned int crc = 0xffff;
+
+        printf("%s, %d\n", data_p, length);
+      if (length == 0)
+            return (~crc);
+      do {
+            for (i=0, data=(unsigned int)0xff & *data_p++; i < 8; i++, data >>= 1){
+                  if ((crc & 0x0001) ^ (data & 0x0001))
+                        crc = (crc >> 1) ^ POLY;
+                  else  crc >>= 1;
+            }
+      } while (--length);
+
+      crc = ~crc;
+      data = crc;
+      crc = (crc << 8) | (data >> 8 & 0xff);
+
+      return crc;
+}
 
 void tty_close (int fd){
-  close (fd) ;
+  close (fd);
 }
 
 int tty_available (int fd){
@@ -134,12 +165,12 @@ tty_available (fd)
 int
 tty_putc (fd, b)
 	int	fd
-	char	b
+	char b
 
 int
 tty_puts (fd, str)
 	int	fd
-	const char *	str
+	const char *str
 
 int
 tty_getc (fd)
@@ -148,14 +179,21 @@ tty_getc (fd)
 char *
 tty_gets (fd, buf, nbytes)
 	int	fd
-	char *	buf
+	char *buf
 	int	nbytes
 
 int
 tty_open (serialport, baud)
-	const char *	serialport
+	const char *serialport
 	int	baud
 
 void
 tty_close (fd)
     int fd
+
+int crc15()
+
+unsigned short
+crc16(data_p, length)
+    char *data_p
+    unsigned short length

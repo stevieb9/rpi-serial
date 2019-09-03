@@ -1,6 +1,5 @@
 package RPi::Serial;
 
-use 5.006;
 use strict;
 use warnings;
 
@@ -43,6 +42,10 @@ sub gets {
     my $char_ptr = tty_gets($_[0]->fd, $buf, $_[1]);
     my $unpacked = unpack "A*", $char_ptr;
     return $unpacked;
+}
+sub crc {
+    my ($data, $length) = @_;
+    return crc16($data, $length);
 }
 sub DESTROY {
     tty_close($_[0]->fd);
