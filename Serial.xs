@@ -15,17 +15,11 @@
 
 #define POLY 0x8408
 
-int crc15() {
-    printf("hello %d\n", 10);
-}
-
 unsigned short crc16(char *data_p, unsigned short length){
-      printf("%d\n", 5);
       unsigned char i;
       unsigned int data;
       unsigned int crc = 0xffff;
 
-        printf("%s, %d\n", data_p, length);
       if (length == 0)
             return (~crc);
       do {
@@ -190,8 +184,6 @@ tty_open (serialport, baud)
 void
 tty_close (fd)
     int fd
-
-int crc15()
 
 unsigned short
 crc16(data_p, length)

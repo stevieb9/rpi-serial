@@ -8,14 +8,9 @@ my $s = RPi::Serial->new('/dev/ttyUSB0', 9600);
 my $data;
 my ($rx_started, $rx_ended) = (0, 0);
 
-print $s->crc("hello", 5);
-exit;
-
 while (1){
     if ($s->avail){
         my $data_populated = rx('[', ']', '!');
-
-        # print "rx_started: $rx_started, rx_ended: $rx_ended\n";
 
         if ($data_populated){
             print "$data\n";
@@ -29,7 +24,7 @@ sub rx {
 
     my $c = chr($s->getc); # getc() returns the ord() val on a char* perl-wise
 
-#     print ">$c<\n";
+    print ">$c<\n";
 
     if ($c ne $start && ! $rx_started){
         rx_reset();
@@ -47,28 +42,42 @@ sub rx {
     if ($c eq $end){
         # print "end\n";
         $rx_ended = 1;
-        return;
+#        return;
     }
-
     if ($rx_started && ! $rx_ended){
         $data .= $c;
     }
-
     if ($rx_started && $rx_ended){
-        if (crc() == 14208 || crc() == 44210){
-            return 1;
-        }
+        my $r_crc = get_crc();
+        my $c_crc = calc_crc($data, 5);
+
+        print "r: $r_crc, calc: $c_crc\n";
+
         return 1;
     }
+
+
 }
-sub crc {
-    my $msb = $s->getc;
-    my $lsb = $s->getc;
+sub calc_crc {
+    my ($data) = @_;
+    return $s->crc($data, length $data);
+}
+sub get_crc {
+
+    my ($msb, $lsb);
+
+    print "*** >$data< ***\n";
+    while ($s->avail < 2){
+#        print "two waiting " . $s->avail . "\n";
+    }
+#        print "avail: " . $s->avail . "\n";
+    $msb = $s->getc;
+    $lsb = $s->getc;
 
     my $crc = ($msb << 8) | $lsb;
 
-    return 0 if $msb == -1 || $lsb == -1;
     print "crc: $crc, msb: $msb, lsb: $lsb\n";
+#    return 0 if $msb == -1 || $lsb == -1;
     return $crc;
 
 }
