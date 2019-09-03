@@ -24,8 +24,6 @@ sub rx {
 
     my $c = chr($s->getc); # getc() returns the ord() val on a char* perl-wise
 
-    print ">$c<\n";
-
     if ($c ne $start && ! $rx_started){
         rx_reset();
         return;
@@ -51,12 +49,12 @@ sub rx {
         my $r_crc = get_crc();
         my $c_crc = calc_crc($data, 5);
 
-        print "r: $r_crc, calc: $c_crc\n";
+        if ($r_crc == $c_crc){
+            return 1;
+        }
 
-        return 1;
+        return;
     }
-
-
 }
 sub calc_crc {
     my ($data) = @_;
@@ -66,18 +64,16 @@ sub get_crc {
 
     my ($msb, $lsb);
 
-    print "*** >$data< ***\n";
-    while ($s->avail < 2){
-#        print "two waiting " . $s->avail . "\n";
-    }
-#        print "avail: " . $s->avail . "\n";
+    while ($s->avail < 2){}
+
     $msb = $s->getc;
     $lsb = $s->getc;
 
     my $crc = ($msb << 8) | $lsb;
 
     print "crc: $crc, msb: $msb, lsb: $lsb\n";
-#    return 0 if $msb == -1 || $lsb == -1;
+
+    return  if $msb == -1 || $lsb == -1;
     return $crc;
 
 }
