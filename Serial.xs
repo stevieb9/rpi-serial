@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <termios.h>
 #include <sys/ioctl.h>
-// #include "crc16.h"
 
 #define POLY 0x8408
 

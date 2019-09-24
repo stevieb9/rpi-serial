@@ -10,12 +10,23 @@ XSLoader::load('RPi::Serial', $VERSION);
 
 sub new {
     my ($class, $device, $baud) = @_;
-    my $self = bless {}, $class;
+
+    my $self = bless {
+        rx_data     => '',
+        rx_started  => 0,
+        rx_ended    => 0,
+    }, $class;
+
     $self->fd(tty_open($device, $baud));
+
     return $self;
 }
 sub close {
     tty_close($_[0]->fd);
+}
+sub crc {
+    my ($self, $data) = @_;
+    return crc16($data, length($data));
 }
 sub avail {
     return tty_available($_[0]->fd);
@@ -43,12 +54,78 @@ sub gets {
     my $unpacked = unpack "A*", $char_ptr;
     return $unpacked;
 }
-sub crc {
-    my ($self, $data) = @_;
-    return crc16($data, length($data));
+sub rx {
+    my ($self, $start, $end) = @_;
+
+    my $c = chr $self->getc; # getc() returns the ord() val on a char* perl-wise
+
+    print ">$c<\n";
+
+    if ($c ne $start && ! $self->{rx_started}){
+        $self->_rx_reset();
+        return;
+    }
+
+    if ($c eq $start){
+        $self->{rx_started} = 1;
+        return;
+    }
+
+    if ($c eq $end){
+        $self->{rx_ended} = 1;
+    }
+
+    if ($self->{rx_started} && ! $self->{rx_ended}){
+        $self->{rx_data} .= $c;
+    }
+
+    if ($self->{rx_started} && $self->{rx_ended}){
+        if (_local_crc($self->{rx_data}) == _remote_crc($self->{rx_data})){
+            my $rx_data = $self->{rx_data};
+            $self->_rx_reset;
+            return $rx_data;
+        }
+        else {
+            warn "\ncompiled data '$self->{rx_data}' has mismatching CRC\n\n";
+            $self->_rx_reset;
+            return;
+        }
+    }
+}
+sub tx {
+    my ($self, $data, $tx_start, $tx_end) = @_;
+
+    my $crc = $self->crc($data);
+    my $crc_msb = $crc >> 8;
+    my $crc_lsb = $crc & 0xFF;
+
+    my $tx = $tx_start . $data . $tx_end . $crc_msb . $crc_lsb;
+
+    $self->puts($tx);
 }
 sub DESTROY {
     tty_close($_[0]->fd);
+}
+sub _local_crc {
+    return $_[0]->crc($_[1], length $_[1]);
+}
+sub _remote_crc {
+    my ($self) = @_;
+
+    while ($self->avail < 2){} # loop until we have two bytes to make up the CRC
+
+    my $msb = $self->getc;
+    my $lsb = $self->getc;
+    my $crc = ($msb << 8) | $lsb;
+
+    return if $msb == -1 || $lsb == -1;
+    return $crc;
+}
+sub _rx_reset {
+    my ($self) = @_;
+    $self->{rx_started} = 0;
+    $self->{rx_ended} = 0;
+    $self->{rx_data} = '';
 }
 sub __placeholder {} # vim folds
 1;
