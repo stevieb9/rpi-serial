@@ -74,6 +74,8 @@ RPi::Serial - Basic read/write interface to a serial port
     my $num_bytes = 12;
     my $str  = $ser->gets($num_bytes);
 
+    my $crc = $ser->crc($str);
+
     $ser->flush;
 
     my $bytes_available = $ser->avail;
@@ -185,7 +187,7 @@ Steve Bertrand, C<< <steveb at cpan.org> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2018 Steve Bertrand.
+Copyright 2019 Steve Bertrand.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
