@@ -54,12 +54,17 @@ sub gets {
     my $unpacked = unpack "A*", $char_ptr;
     return $unpacked;
 }
+sub write {
+    my ($self, $byte) = @_;
+    if (! defined $byte){
+        die "write() requires a byte of data sent in\n";
+    }
+    $self->putc(pack("C", $byte));
+}
 sub rx {
     my ($self, $start, $end) = @_;
 
     my $c = chr $self->getc; # getc() returns the ord() val on a char* perl-wise
-
-    print ">$c<\n";
 
     if ($c ne $start && ! $self->{rx_started}){
         $self->_rx_reset();
@@ -80,7 +85,11 @@ sub rx {
     }
 
     if ($self->{rx_started} && $self->{rx_ended}){
-        if ($self->_local_crc($self->{rx_data}) == $self->_remote_crc($self->{rx_data})){
+
+        my $l_crc = $self->_local_crc($self->{rx_data});
+        my $r_crc = $self->_remote_crc($self->{rx_data});
+
+        if ($r_crc == $l_crc){
             my $rx_data = $self->{rx_data};
             $self->_rx_reset;
             return $rx_data;
@@ -99,26 +108,32 @@ sub tx {
     my $crc_msb = $crc >> 8;
     my $crc_lsb = $crc & 0xFF;
 
-    my $tx = $tx_start . $data . $tx_end . $crc_msb . $crc_lsb;
+    my $tx = $tx_start . $data . $tx_end;
 
-    $self->puts($tx);
+    for (split //, $tx){
+        $self->putc($_);
+    }
+
+    $self->write($crc_msb);
+    $self->write($crc_lsb);
 }
 sub DESTROY {
     tty_close($_[0]->fd);
 }
 sub _local_crc {
-    return $_[0]->crc($_[1], length $_[1]);
+    return $_[0]->crc($_[1]);
 }
 sub _remote_crc {
     my ($self) = @_;
 
     while ($self->avail < 2){} # loop until we have two bytes to make up the CRC
 
-    my $msb = $self->getc;
-    my $lsb = $self->getc;
-    my $crc = ($msb << 8) | $lsb;
+    my $crc_msb = $self->getc;
+    my $crc_lsb = $self->getc;
 
-    return if $msb == -1 || $lsb == -1;
+    my $crc = ($crc_msb << 8) | $crc_lsb;
+
+    return if $crc_msb == -1 || $crc_lsb == -1;
     return $crc;
 }
 sub _rx_reset {
