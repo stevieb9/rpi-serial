@@ -111,7 +111,7 @@ sub tx {
     my $tx = $tx_start . $data . $tx_end;
 
     for (split //, $tx){
-        $self->putc($_);
+        $self->write($_);
     }
 
     $self->write($crc_msb);
