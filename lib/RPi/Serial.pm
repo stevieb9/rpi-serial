@@ -80,7 +80,7 @@ sub rx {
     }
 
     if ($self->{rx_started} && $self->{rx_ended}){
-        if (_local_crc($self->{rx_data}) == _remote_crc($self->{rx_data})){
+        if ($self->_local_crc($self->{rx_data}) == $self->_remote_crc($self->{rx_data})){
             my $rx_data = $self->{rx_data};
             $self->_rx_reset;
             return $rx_data;
