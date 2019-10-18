@@ -1,6 +1,6 @@
 Revision history for RPi-Serial
 
-3.01 UNREL
+3.01    2019-09-24
         - added crc() method/function for calculating CRCs
 
 3.00    2019-08-02

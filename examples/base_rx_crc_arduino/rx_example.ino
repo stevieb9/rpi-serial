@@ -10,14 +10,22 @@ extern "C" {
 #define SERIAL_DEBUG    1
 
 #define PIR_PIN         5
+#define BSMT_DOOR_PIN   6
+#define TRIPWIRE_PIN    7
 
 const char *pirOff      = "50";
-const char *pirOn       = "51";
+const char *pirOn       = "51"; // basement movement
 
-const byte rxPin = 8;
-const byte txPin = 9;
+const char *bsmtClosed  = "60";
+const char *bsmtOpen    = "61"; // basement door breached
 
-const unsigned long interval = 2000;
+const char *tripClosed  = "70";
+const char *tripOpen    = "71"; // laser beam breached
+
+const uint8_t rxPin = 8;
+const uint8_t txPin = 9;
+
+const unsigned long waitTime = 2000;
 unsigned long startTime = millis();
 
 const char startChar = '[';
@@ -32,25 +40,49 @@ void setup() {
 
 void loop() {
 
-    if (millis () - startTime >= interval) {
+    if (millis () - startTime >= waitTime) {
 
-        if (digitalRead(PIR_PIN))
-             hc12Send(pirOn, strlen(pirOn));
-        else
-            hc12Send(pirOff, strlen(pirOff));
+        switch (digitalRead(PIR_PIN)) {
+            case HIGH:
+                hc12Send(pirOn);
+                break;
+            case LOW:
+                hc12Send(pirOff);
+                break;
+        }
+
+        switch (digitalRead(BSMT_DOOR_PIN)) {
+            case LOW:
+                hc12Send(bsmtOpen);
+                break;
+            case HIGH:
+                hc12Send(bsmtClosed);
+                break;
+        }
+
+        switch (digitalRead(TRIPWIRE_PIN)) {
+            case LOW:
+                hc12Send(tripOpen);
+                break;
+            case HIGH:
+                hc12Send(tripClosed);
+                break;
+        }
 
         startTime = millis();
     }
 }
 
-void hc12Send (char *data, uint8_t len){
+void hc12Send (char *data){
+
+    uint8_t len = strlen(data);
 
     unsigned short crc = crc16(data, len);
     uint8_t msb = crc >> 8;
     uint8_t lsb = crc & 0xFF;
 
     if (SERIAL_DEBUG){
-        displaySerial(data, len, msb, lsb);
+        serialDebug(data, len, msb, lsb);
     }
 
     hc12.write(startChar);
@@ -64,15 +96,15 @@ void hc12Send (char *data, uint8_t len){
     hc12.write(msb);
     hc12.write(lsb);
 }
-void displaySerial (char *data, uint8_t len, uint8_t msb, uint8_t lsb){
+void serialDebug (char *data, uint8_t len, uint8_t msb, uint8_t lsb){
 
     Serial.print(startChar);
     Serial.print(data);
     Serial.print(endChar);
-    Serial.println(crc16(data, len));
+    Serial.print(crc16(data, len));
 
-    Serial.print(F("msb: "));
-    Serial.println(msb);
-    Serial.print(F("lsb: "));
+    Serial.print(F(", msb: "));
+    Serial.print(msb);
+    Serial.print(F(", lsb: "));
     Serial.println(lsb);
 }
