@@ -3,6 +3,7 @@ package RPi::Serial;
 use strict;
 use warnings;
 
+
 our $VERSION = '3.01';
 
 require XSLoader;
