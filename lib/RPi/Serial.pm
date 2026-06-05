@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 
-our $VERSION = '3.01';
+our $VERSION = '3.02';
 
 require XSLoader;
 XSLoader::load('RPi::Serial', $VERSION);
@@ -50,10 +50,9 @@ sub getc {
     return tty_getc($_[0]->fd);
 }
 sub gets {
-    my $buf = "";
-    my $char_ptr = tty_gets($_[0]->fd, $buf, $_[1]);
-    my $unpacked = unpack "A*", $char_ptr;
-    return $unpacked;
+    # Returns the exact bytes read (binary-safe); may be shorter than the
+    # requested count if the port's read timeout elapsed first.
+    return tty_gets($_[0]->fd, $_[1]);
 }
 sub write {
     my ($self, $byte) = @_;
@@ -233,15 +232,23 @@ Retrieve a single character from the serial port.
 
 =head2 gets($num_bytes)
 
-Read a specified number of bytes into a string.
+Read up to a specified number of bytes and return them as a string.
+
+The read blocks only until the port's configured read timeout (the C<VTIME>
+value set when the port was opened) elapses, so the returned string may be
+B<shorter> than C<$num_bytes> if fewer bytes arrived in time (or the device
+closed). The result is binary-safe: embedded C<NUL> bytes and trailing
+whitespace are preserved exactly as received.
 
 Parameters:
 
     $num_bytes
 
-Mandatory, Integer; The number of bytes to read. If this number is larger than
-what is available to be read, a 10 second timeout will briefly hand your
-application.
+Mandatory, Integer; The maximum number of bytes to read. If this number is
+larger than what is available, the call returns the bytes received before the
+read timeout elapsed (possibly an empty string).
+
+Returns: A string of the bytes actually read. Croaks on a read error.
 
 =head2 putc($char)
 

@@ -70,24 +70,6 @@ int tty_getc (int fd){
   return ((int)x) & 0xFF;
 }
 
-char* tty_gets(int fd, char* buf, int nbytes){
-    int bytes_read = 0;
-
-    while (bytes_read < nbytes){
-        int result = read(fd, buf + bytes_read, nbytes - bytes_read);
-
-        if (0 >= result){
-            if (0 > result){
-                exit(-1);
-            }
-            break;
-        }
-        bytes_read += result;
-    }
-
-    return buf;
-}
-
 int tty_open(const char *serialport, int baud){
     struct termios toptions;
     int fd;
@@ -169,11 +151,41 @@ int
 tty_getc (fd)
 	int	fd
 
-char *
-tty_gets (fd, buf, nbytes)
+void
+tty_gets (fd, nbytes)
 	int	fd
-	char *buf
 	int	nbytes
+    PREINIT:
+        char *buf;
+        int got = 0;
+        int flags;
+        int result;
+    PPCODE:
+        if (nbytes < 0)
+            croak("tty_gets: nbytes must be a non-negative integer");
+        /* tty_open() opens with O_NDELAY (non-blocking), which defeats the
+           port's VMIN/VTIME read timeout. Clear it so a read blocks up to
+           that timeout instead of returning EAGAIN immediately. */
+        flags = fcntl(fd, F_GETFL, 0);
+        if (flags != -1 && (flags & O_NONBLOCK))
+            fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+        Newx(buf, nbytes > 0 ? nbytes : 1, char);
+        while (got < nbytes) {
+            result = read(fd, buf + got, nbytes - got);
+            if (result > 0) {
+                got += result;
+                continue;
+            }
+            if (result == 0)
+                break;                  /* VTIME timeout or EOF */
+            if (errno == EINTR)
+                continue;               /* interrupted by a signal; retry */
+            Safefree(buf);
+            croak("tty_gets: read error: %s", strerror(errno));
+        }
+        ST(0) = sv_2mortal(newSVpvn(buf, got));
+        Safefree(buf);
+        XSRETURN(1);
 
 int
 tty_open (serialport, baud)
