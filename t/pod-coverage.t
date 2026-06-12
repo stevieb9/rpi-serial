@@ -16,10 +16,10 @@ my $pc = Pod::Coverage->new(
     package => 'RPi::Serial',
     pod_from => 'lib/RPi/Serial.pm',
     private => [
+        qr/^_/,
         qr/^tty/,
         qr/^crc16$/,
         qr/^DESTROY$/,
-        qr/^__placeholder$/,
         qr/^bootstrap$/
     ],
 );

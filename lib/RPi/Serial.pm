@@ -117,9 +117,11 @@ sub tx {
     $self->write($crc_msb);
     $self->write($crc_lsb);
 }
+
 sub DESTROY {
     tty_close($_[0]->fd);
 }
+
 sub _local_crc {
     return $_[0]->crc($_[1]);
 }
@@ -158,13 +160,31 @@ RPi::Serial - Basic read/write interface to a serial port
     
     my $ser = RPi::Serial->new($dev, $baud);
 
+    # Write a single char
+
     $ser->putc(5);
+
+    # Write a string
+
     $ser->puts("hello, world!");
 
+    # Write a single byte by its integer value (0-255)
+
+    $ser->write(65);
     my $char = $ser->getc;
+
+    # Get a string
 
     my $num_bytes = 12;
     my $str  = $ser->gets($num_bytes);
+
+    # Send a CRC-framed payload between start/end delimiters
+
+    $ser->tx("payload", "<", ">");
+
+    # Receive a CRC-framed payload (call in a loop until it returns the data)
+
+    my $frame = $ser->rx("<", ">");
 
     my $crc = $ser->crc($str);
 
@@ -180,16 +200,36 @@ Provides basic read and write functionality of a UART serial interface
 
 =head1 WARNING
 
-If using on a Raspberry Pi platform:
+If using on a Raspberry Pi platform, the procedure to enable GPIO pins 14 (TXD)
+and 15 (RXD) as a serial interface differs by board. On B<all> boards, first
+free the port from the kernel console: in C<raspi-config>, under C<Interface
+Options -E<gt> Serial Port>, answer B<no> to the login shell and B<yes> to the
+serial hardware.
 
-In order to use GPIO pins 14 and 15 as a serial interface on the Raspberry Pi,
-you need to disable the built-in Bluetooth adaptor. This distribution will not
-operate correctly without this being done.
+=head2 Raspberry Pi 3 / 4 (and Zero W)
 
-To disable Bluetooth on the Pi, edit the C</boot/config.txt>, and add the
-following line:
+The on-board Bluetooth modem is wired to the primary PL011 UART, leaving GPIO
+14/15 on the inferior, baud-unstable mini-UART (C</dev/ttyS0>). To move the good
+UART onto the header pins you must disable Bluetooth. Edit
+C</boot/firmware/config.txt> (C</boot/config.txt> on releases before Bookworm)
+and add:
 
-    dtoverlay=pi3-disable-bt-overlay
+    enable_uart=1
+    dtoverlay=disable-bt
+
+With that overlay the header serial port becomes C</dev/ttyAMA0>.
+
+=head2 Raspberry Pi 5
+
+Bluetooth has its B<own dedicated UART> and is B<not> shared with the GPIO 14/15
+pins, so there is nothing to disable. Just enable the header UART in
+C</boot/firmware/config.txt>:
+
+    enable_uart=1
+
+The header serial port is C</dev/ttyAMA0>. (Note that on the Pi 5
+C</dev/serial0> maps to the separate 3-pin debug-UART connector, B<not> the
+header pins.)
 
 Save the file, then reboot the Pi.
 
@@ -204,11 +244,11 @@ Parameters:
 
     $device
 
-Mandatory, String: The serial device to open (eg: C<"/dev/ttyAMA0">.
+Mandatory, String: The serial device to open (eg: C<"/dev/ttyAMA0">).
 
     $baud
 
-Mandatory, Integer: A valud baud rate to use.
+Mandatory, Integer: A valid baud rate to use.
 
 =head2 close
 
@@ -280,6 +320,64 @@ Parameters:
     $string
 
 Mandatory, String: The string to perform the checksum on.
+
+=head2 write($byte)
+
+Writes a single byte to the serial device. The byte is packed into an unsigned
+char before being sent, making this a convenience wrapper around L</putc($char)>
+that accepts an integer value rather than a character.
+
+Parameters:
+
+    $byte
+
+Mandatory, Unsigned Integer (0-255): The byte value to write to the port.
+Croaks if not supplied.
+
+=head2 rx($start, $end)
+
+Reads a single character from the serial port and assembles framed data across
+successive calls. A frame begins when the C<$start> delimiter is received and
+ends when the C<$end> delimiter is received, at which point the two trailing
+CRC-16 bytes are read and validated against the assembled payload.
+
+Call this repeatedly (eg: in a loop). Until a complete, CRC-valid frame has been
+received it returns C<undef>; characters seen before the C<$start> delimiter are
+discarded.
+
+Parameters:
+
+    $start
+
+Mandatory, Char: The single character that marks the beginning of a frame.
+
+    $end
+
+Mandatory, Char: The single character that marks the end of a frame.
+
+Returns: The assembled payload string once a full frame with a matching CRC has
+been received, or C<undef> otherwise. Warns and discards the frame if the
+received CRC does not match the locally computed one.
+
+=head2 tx($data, $tx_start, $tx_end)
+
+Transmits a frame of data. The C<$data> is wrapped between the C<$tx_start> and
+C<$tx_end> delimiters and written to the port, followed by the two bytes (most
+significant first) of the CRC-16 checksum calculated over C<$data>.
+
+Parameters:
+
+    $data
+
+Mandatory, String: The payload to transmit.
+
+    $tx_start
+
+Mandatory, Char: The single character to send before the payload.
+
+    $tx_end
+
+Mandatory, Char: The single character to send after the payload.
 
 =head1 AUTHOR
 
