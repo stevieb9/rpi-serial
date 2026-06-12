@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 
-our $VERSION = '3.02';
+our $VERSION = '3.03';
 
 require XSLoader;
 XSLoader::load('RPi::Serial', $VERSION);
