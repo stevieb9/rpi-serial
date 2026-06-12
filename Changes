@@ -1,6 +1,6 @@
 Revision history for RPi-Serial
 
-3.02    UNREL
+3.02       2026-06-12
         - Fixed a heap buffer overflow in gets(): the Perl wrapper passed a
           zero-length scalar that the XS tty_gets() then wrote up to $num_bytes
           into. tty_gets() is now a self-allocating XSUB (Newx/Safefree) that
