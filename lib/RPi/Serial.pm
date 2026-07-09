@@ -186,44 +186,38 @@ RPi::Serial - Basic read/write interface to a serial port
 
     use RPi::Serial;
 
-    my $dev  = "/dev/ttyAMA0";
-    my $baud = 115200;
-    
-    my $ser = RPi::Serial->new($dev, $baud);
+    # Open the port with a device path and a baud rate
 
-    # Write a single char
+    my $s = RPi::Serial->new('/dev/ttyAMA0', 115200);
 
-    $ser->putc(5);
+    # --- single bytes ---
 
-    # Write a string
+    $s->putc('A');          # write one character
+    $s->write(65);          # write one byte by its integer value (0-255)
 
-    $ser->puts("hello, world!");
+    my $ord = $s->getc;     # read one byte; returns its 0-255 value (-1 if none)
 
-    # Write a single byte by its integer value (0-255)
+    # --- strings ---
 
-    $ser->write(65);
-    my $char = $ser->getc;
+    $s->puts("hello, world!");
 
-    # Get a string
+    my $str = $s->gets(13); # read up to N bytes (may be shorter on timeout)
 
-    my $num_bytes = 12;
-    my $str  = $ser->gets($num_bytes);
+    # --- CRC-framed messages (see "CRC FRAMING" below) ---
 
-    # Send a CRC-framed payload between start/end delimiters
+    $s->tx("temp=23.5C", '<', '>');   # send a delimited, CRC-checked payload
 
-    $ser->tx("payload", "<", ">");
+    # rx() returns undef until a whole, CRC-valid frame has arrived; call it in
+    # a loop (see the worked example under "CRC FRAMING")
+    my $msg = $s->rx('<', '>');
 
-    # Receive a CRC-framed payload (call in a loop until it returns the data)
+    my $checksum = $s->crc("temp=23.5C");   # CRC-16 of an arbitrary string
 
-    my $frame = $ser->rx("<", ">");
+    # --- housekeeping ---
 
-    my $crc = $ser->crc($str);
-
-    $ser->flush;
-
-    my $bytes_available = $ser->avail;
-
-    $ser->close;
+    my $waiting = $s->avail;   # bytes waiting to be read
+    $s->flush;                 # discard buffered input/output
+    $s->close;
 
 =head1 DESCRIPTION
 
@@ -409,6 +403,77 @@ Mandatory, Char: The single character to send before the payload.
     $tx_end
 
 Mandatory, Char: The single character to send after the payload.
+
+=head1 CRC FRAMING
+
+L</tx($data, $tx_start, $tx_end)> and L</rx($start, $end)> together implement a
+small, robust message protocol on top of the raw byte stream: you send a whole
+payload and the far end can confirm it arrived intact. Each message is wrapped
+between a start and an end delimiter and followed by a two-byte CRC-16 of the
+payload:
+
+    +---------+--------------+---------+-----------+-----------+
+    | $start  |  payload...  |  $end   |  CRC MSB  |  CRC LSB  |
+    +---------+--------------+---------+-----------+-----------+
+              \___ the CRC covers the payload only ___/
+
+L</tx($data, $tx_start, $tx_end)> writes that entire frame in one call.
+
+L</rx($start, $end)> is the receiver, and it is B<stateful>: it consumes one byte
+per call, so you call it repeatedly until it hands you a message. It discards
+input until it sees C<$start>, accumulates the payload until it sees C<$end>,
+then reads the two trailing CRC bytes and compares them against a CRC it
+recomputes over what it received. On a match it returns the payload string; on a
+mismatch it warns and discards the frame. Until a complete, CRC-valid frame has
+arrived it returns C<undef>.
+
+The C<$start> and C<$end> delimiter characters must not occur inside the payload,
+or the frame will be cut short. Any other byte value is fine, including binary
+data - the two CRC bytes are read by position, so they may take any value.
+
+=head2 The checksum
+
+L</crc($string)> is a CRC-16 with polynomial C<0x8408> (the reflected form of the
+CCITT C<0x1021>), initial value C<0xFFFF>, reflected input and output, and a
+final XOR of C<0xFFFF> - that is, B<CRC-16/X-25> - with the two bytes of the
+result swapped before it is returned. An empty string hashes to C<0>. Because
+both ends use this same function, the reflection and byte-swap cancel out and the
+framing simply works; the swap only matters if you compare the value against an
+outside CRC-16 implementation.
+
+=head2 Example
+
+Send and receive CRC-framed messages. This works between two devices running the
+same protocol, or on a single Pi with TX (GPIO 14) wired to RX (GPIO 15):
+
+    use RPi::Serial;
+
+    my $s = RPi::Serial->new('/dev/ttyAMA0', 115200);
+
+    my @messages = ('PING', 'temp=23.5C', 'cmd:led=on;pin=17');
+
+    # Transmit each message as its own CRC-framed packet
+    for my $msg (@messages) {
+        $s->tx($msg, '<', '>');
+    }
+
+    # Receive them back. rx() yields one payload per complete, CRC-valid frame
+    # and undef in between, so poll it while there are bytes to consume.
+    my @received;
+
+    while (@received < @messages) {
+        next if $s->avail < 1;            # nothing to read yet
+
+        my $frame = $s->rx('<', '>');     # advances one byte per call
+        push @received, $frame if defined $frame;
+    }
+
+    print "received: $_\n" for @received; # PING / temp=23.5C / cmd:led=on;pin=17
+
+    $s->close;
+
+On a real link you would also bound the wait - a timeout or a maximum number of
+polls - so a lost or corrupted frame cannot block the loop forever.
 
 =head1 AUTHOR
 

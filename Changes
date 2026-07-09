@@ -28,6 +28,10 @@ Revision history for RPi-Serial
       frame order, rx() reassembly/discard/mismatch, flush()) and
       t/10-loopback.t (a live TX-wired-to-RX round-trip, gated on
       RPI_SERIAL_LOOPBACK)
+    - POD: rewrote the SYNOPSIS (and corrected its putc() example, which passed
+      an integer where putc() takes a character - use write() for an integer),
+      and added a "CRC FRAMING" section documenting the tx()/rx() frame layout,
+      the CRC-16 algorithm, and a worked, verified send/receive example
 
 3.02       2026-06-12
         - Fixed a heap buffer overflow in gets(): the Perl wrapper passed a
