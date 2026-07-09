@@ -118,6 +118,10 @@ int tty_open(const char *serialport, int baud){
 
     toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
     toptions.c_iflag &= ~(IXON | IXOFF | IXANY); // turn off s/w flow ctrl
+    // Fully raw input: no CR/NL translation, break handling, parity marking or
+    // 8th-bit stripping, so every byte value 0-255 passes through unchanged
+    // (ICRNL was silently mapping an input 0x0D to 0x0A)
+    toptions.c_iflag &= ~(ICRNL | INLCR | IGNCR | ISTRIP | INPCK | BRKINT | PARMRK | IGNBRK);
 
     toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
     toptions.c_oflag &= ~OPOST; // make raw

@@ -20,6 +20,10 @@ Revision history for RPi-Serial
       full CRC-valid frame arrives
     - Added tty_flush() XSUB (tcflush TCIOFLUSH); flush() previously called an
       undefined subroutine and died
+    - tty_open() now sets fully-raw input: it clears ICRNL/INLCR/IGNCR (CR/NL
+      translation), ISTRIP (8th-bit stripping) and the break/parity input flags
+      it previously left set. An input 0x0D was being silently mapped to 0x0A,
+      so a single byte value never round-tripped; all 256 now pass unchanged
     - Added t/05-unit.t (HW-free: crc vectors, new()/write() validation, tx()
       frame order, rx() reassembly/discard/mismatch, flush()) and
       t/10-loopback.t (a live TX-wired-to-RX round-trip, gated on
