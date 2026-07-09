@@ -3,6 +3,7 @@ package RPi::Serial;
 use strict;
 use warnings;
 
+use Carp qw(croak);
 
 our $VERSION = '3.03';
 
@@ -12,18 +13,36 @@ XSLoader::load('RPi::Serial', $VERSION);
 sub new {
     my ($class, $device, $baud) = @_;
 
-    my $self = bless {
-        rx_data     => '',
-        rx_started  => 0,
-        rx_ended    => 0,
-    }, $class;
+    if (! defined $device){
+        croak "new() requires a serial device path\n";
+    }
 
-    $self->fd(tty_open($device, $baud));
+    if (! defined $baud || $baud !~ /^\d+$/ || $baud == 0){
+        croak "new() requires a positive integer baud rate\n";
+    }
+
+    # Open before blessing so a failed open never leaves a live object whose
+    # DESTROY would close a bogus fd
+
+    my $fd = tty_open($device, $baud);
+
+    if ($fd < 0){
+        croak "new() could not open serial device '$device'\n";
+    }
+
+    my $self = bless {
+        rx_data    => '',
+        rx_started => 0,
+        rx_ended   => 0,
+        fd         => $fd,
+    }, $class;
 
     return $self;
 }
 sub close {
-    tty_close($_[0]->fd);
+    my ($self) = @_;
+    my $fd = $self->fd;
+    tty_close($fd) if defined $fd && $fd >= 0;
 }
 sub crc {
     my ($self, $data) = @_;
@@ -56,9 +75,11 @@ sub gets {
 }
 sub write {
     my ($self, $byte) = @_;
-    if (! defined $byte){
-        die "write() requires a byte of data sent in\n";
+
+    if (! defined $byte || $byte !~ /^\d+$/ || $byte > 255){
+        croak "write() requires a byte value between 0 and 255\n";
     }
+
     $self->putc(pack("C", $byte));
 }
 sub rx {
@@ -100,6 +121,10 @@ sub rx {
             return;
         }
     }
+
+    # Still assembling a frame: return an explicit undef, not the value of the
+    # last if-condition (which would be a defined 0 and read as a complete frame)
+    return;
 }
 sub tx {
     my ($self, $data, $tx_start, $tx_end) = @_;
@@ -110,8 +135,12 @@ sub tx {
 
     my $tx = $tx_start . $data . $tx_end;
 
+    # The delimiters and payload go out as raw characters via putc(); write()
+    # is only for the two integer CRC bytes below - it packs an integer, so
+    # handing it a character would numify to 0 and corrupt the frame
+
     for (split //, $tx){
-        $self->write($_);
+        $self->putc($_);
     }
 
     $self->write($crc_msb);
@@ -119,7 +148,9 @@ sub tx {
 }
 
 sub DESTROY {
-    tty_close($_[0]->fd);
+    my ($self) = @_;
+    my $fd = $self->fd;
+    tty_close($fd) if defined $fd && $fd >= 0;
 }
 
 sub _local_crc {

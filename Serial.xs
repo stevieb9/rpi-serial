@@ -40,6 +40,10 @@ void tty_close (int fd){
   close (fd);
 }
 
+int tty_flush (int fd){
+    return tcflush(fd, TCIOFLUSH);
+}
+
 int tty_available (int fd){
     int bytes_available;
     ioctl(fd, FIONREAD, &bytes_available);
@@ -135,6 +139,10 @@ PROTOTYPES: DISABLE
 
 int
 tty_available (fd)
+	int	fd
+
+int
+tty_flush (fd)
 	int	fd
 
 int

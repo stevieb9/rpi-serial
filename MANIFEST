@@ -11,6 +11,8 @@ MANIFEST.SKIP
 README
 Serial.xs
 t/00-load.t
+t/05-unit.t
+t/10-loopback.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t

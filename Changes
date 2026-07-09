@@ -1,7 +1,29 @@
 Revision history for RPi-Serial
 
 3.03 UNREL
-    -
+    - new() now validates its arguments and croaks instead of returning a
+      broken object: it requires a device path and a positive-integer baud,
+      and croaks "could not open <device>" when tty_open() fails (previously a
+      failed open returned an object with fd == -1)
+    - close() and DESTROY() no longer call tty_close() on an undefined or
+      negative fd
+    - write() now croaks on a value outside 0-255 (or a non-integer) instead
+      of silently wrapping it through pack("C"); this also caught the tx() bug
+      below
+    - Fixed tx(): it fed each frame character to write(), which expects an
+      integer and packed it with "C", so every non-digit character went out as
+      0x00. Frame characters now go out via putc(); the two integer CRC bytes
+      still go through write()
+    - Fixed rx(): while still assembling a frame it fell off the end of the sub
+      and returned the value of the last if-condition (a defined 0), which read
+      to callers as a completed frame. It now returns an explicit undef until a
+      full CRC-valid frame arrives
+    - Added tty_flush() XSUB (tcflush TCIOFLUSH); flush() previously called an
+      undefined subroutine and died
+    - Added t/05-unit.t (HW-free: crc vectors, new()/write() validation, tx()
+      frame order, rx() reassembly/discard/mismatch, flush()) and
+      t/10-loopback.t (a live TX-wired-to-RX round-trip, gated on
+      RPI_SERIAL_LOOPBACK)
 
 3.02       2026-06-12
         - Fixed a heap buffer overflow in gets(): the Perl wrapper passed a
