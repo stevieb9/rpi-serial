@@ -32,6 +32,15 @@ Revision history for RPi-Serial
       an integer where putc() takes a character - use write() for an integer),
       and added a "CRC FRAMING" section documenting the tx()/rx() frame layout,
       the CRC-16 algorithm, and a worked, verified send/receive example
+    - rx() now returns undef immediately when called on an empty buffer (getc()
+      returns -1) instead of processing chr(-1), which warned and corrupted the
+      frame being assembled. rx() is now safe to poll in a tight loop without a
+      separate avail() guard
+    - rx() no longer busy-waits forever for a truncated frame's trailing CRC
+      bytes: _remote_crc() caps the wait at $RX_CRC_TIMEOUT seconds (default 1)
+      and discards the frame (returns undef) if the two bytes never arrive
+    - POD: documented rx()'s empty-buffer safety, the truncated-frame timeout,
+      and the $RX_CRC_TIMEOUT knob
 
 3.02       2026-06-12
         - Fixed a heap buffer overflow in gets(): the Perl wrapper passed a

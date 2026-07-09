@@ -142,6 +142,29 @@ for my $vec ('', 'A', '123456789', "\x00\x01\x02\xff", 'RPi::Serial'){
         is $out, undef, 'rx(): CRC mismatch returns undef';
         like $warn, qr/mismatching CRC/, '  warns on CRC mismatch';
     }
+    {
+        # Hardening: an empty buffer (getc returns -1) returns undef quietly,
+        # without processing chr(-1) or advancing the frame state
+        my $s = $fresh->();
+        @q = ();
+        my $warn = '';
+        local $SIG{__WARN__} = sub { $warn .= $_[0] };
+        my $out = $s->rx('<', '>');
+        is $out, undef, 'rx(): empty buffer (getc -1) returns undef';
+        is $warn, '', '  ...with no warning';
+        ok ! $s->{rx_started}, '  ...and does not start a frame';
+    }
+    {
+        # Hardening: a truncated frame (an end delimiter but fewer than the two
+        # CRC bytes) times out instead of spinning forever, and is discarded
+        local $RPi::Serial::RX_CRC_TIMEOUT = 0.05;
+        my $s = $fresh->();
+        @q = (ord('<'), ord('A'), ord('B'), ord('>'), 0x10);   # only 1 CRC byte
+        my $out;
+        $out = $s->rx('<', '>') for 1 .. 4;
+        is $out, undef, 'rx(): truncated frame (missing a CRC byte) times out to undef';
+        ok ! $s->{rx_started}, '  ...and resets the frame';
+    }
 }
 
 # --- flush(): calls tty_flush with the fd ---

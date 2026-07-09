@@ -10,6 +10,10 @@ our $VERSION = '3.03';
 require XSLoader;
 XSLoader::load('RPi::Serial', $VERSION);
 
+# Seconds rx() waits for a frame's two trailing CRC bytes before giving up on a
+# truncated frame (see _remote_crc). Raise it if a slow link ever needs longer.
+our $RX_CRC_TIMEOUT = 1;
+
 sub new {
     my ($class, $device, $baud) = @_;
 
@@ -85,7 +89,14 @@ sub write {
 sub rx {
     my ($self, $start, $end) = @_;
 
-    my $c = chr $self->getc; # getc() returns the ord() val on a char* perl-wise
+    my $byte = $self->getc;
+
+    # Nothing waiting (getc() returns -1 on an empty buffer): report "no frame
+    # yet" without advancing the frame state or processing chr(-1). This makes
+    # rx() safe to call in a tight poll loop without a separate avail() guard.
+    return if $byte == -1;
+
+    my $c = chr $byte; # getc() returns the ord() val on a char* perl-wise
 
     if ($c ne $start && ! $self->{rx_started}){
         $self->_rx_reset();
@@ -107,8 +118,16 @@ sub rx {
 
     if ($self->{rx_started} && $self->{rx_ended}){
 
+        my $r_crc = $self->_remote_crc;
+
+        # Truncated frame: the two CRC bytes never arrived within the timeout, so
+        # discard what we have rather than block or compare against undef
+        if (! defined $r_crc){
+            $self->_rx_reset;
+            return;
+        }
+
         my $l_crc = $self->_local_crc($self->{rx_data});
-        my $r_crc = $self->_remote_crc($self->{rx_data});
 
         if ($r_crc == $l_crc){
             my $rx_data = $self->{rx_data};
@@ -159,15 +178,22 @@ sub _local_crc {
 sub _remote_crc {
     my ($self) = @_;
 
-    while ($self->avail < 2){} # loop until we have two bytes to make up the CRC
+    # Wait (bounded) for the two trailing CRC bytes. On a truncated frame they
+    # never arrive, so cap the wait at $RX_CRC_TIMEOUT seconds and return undef
+    # instead of spinning forever; the caller then discards the frame.
+    my $waited = 0;
+    while ($self->avail < 2){
+        return if $waited >= $RX_CRC_TIMEOUT;
+        select(undef, undef, undef, 0.001);
+        $waited += 0.001;
+    }
 
     my $crc_msb = $self->getc;
     my $crc_lsb = $self->getc;
 
-    my $crc = ($crc_msb << 8) | $crc_lsb;
-
     return if $crc_msb == -1 || $crc_lsb == -1;
-    return $crc;
+
+    return ($crc_msb << 8) | $crc_lsb;
 }
 sub _rx_reset {
     my ($self) = @_;
@@ -303,7 +329,9 @@ Returns the C<ioctl> file descriptor for the current serial object.
 
 =head2 getc
 
-Retrieve a single character from the serial port.
+Reads a single byte from the serial port and returns its integer value
+(C<0>-C<255>), or C<-1> if no byte is currently available (C<getc> does not
+block). Use C<chr> on the result to get it as a character.
 
 =head2 gets($num_bytes)
 
@@ -333,7 +361,9 @@ Parameters:
 
     $char
 
-Mandatory, Unsigned Char: The character to write to the port.
+Mandatory, Unsigned Char: The character to write to the port. Pass a character
+(eg: C<'A'> or C<chr($n)>) - only its first byte is sent. To write a numeric
+byte value directly, use L</write($byte)> instead.
 
 =head2 puts($string)
 
@@ -367,7 +397,8 @@ Parameters:
     $byte
 
 Mandatory, Unsigned Integer (0-255): The byte value to write to the port.
-Croaks if not supplied.
+Croaks if it is missing, non-integer, or outside the range C<0>-C<255>. To send
+a character rather than a numeric value, use L</putc($char)>.
 
 =head2 rx($start, $end)
 
@@ -393,6 +424,15 @@ Mandatory, Char: The single character that marks the end of a frame.
 Returns: The assembled payload string once a full frame with a matching CRC has
 been received, or C<undef> otherwise. Warns and discards the frame if the
 received CRC does not match the locally computed one.
+
+It is safe to call when nothing is waiting: an empty read returns C<undef>
+without advancing the frame, so you may poll it in a tight loop without a
+separate L</avail> check (the example under L</CRC FRAMING> still guards with
+C<avail> to avoid spinning, which is good practice but no longer required for
+correctness). A truncated frame - an C<$end> delimiter that is never followed by
+its two CRC bytes - is discarded after C<$RPi::Serial::RX_CRC_TIMEOUT> seconds
+(default C<1>) rather than blocking forever; raise that package variable if a
+slow link needs longer.
 
 =head2 tx($data, $tx_start, $tx_end)
 
