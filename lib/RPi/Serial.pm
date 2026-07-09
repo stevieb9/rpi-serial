@@ -190,33 +190,43 @@ RPi::Serial - Basic read/write interface to a serial port
 
     my $s = RPi::Serial->new('/dev/ttyAMA0', 115200);
 
-    # --- single bytes ---
+    # Single bytes
 
-    $s->putc('A');          # write one character
-    $s->write(65);          # write one byte by its integer value (0-255)
+    $s->putc('A');          # Write one character
+    $s->write(65);          # Write one byte by its integer value (0-255)
 
-    my $ord = $s->getc;     # read one byte; returns its 0-255 value (-1 if none)
+    my $ord = $s->getc;     # Read one byte; returns its 0-255 value (-1 if none)
 
-    # --- strings ---
+    # Strings
 
     $s->puts("hello, world!");
 
     my $str = $s->gets(13); # read up to N bytes (may be shorter on timeout)
 
-    # --- CRC-framed messages (see "CRC FRAMING" below) ---
+    # CRC-framed messages (see "CRC FRAMING")
 
-    $s->tx("temp=23.5C", '<', '>');   # send a delimited, CRC-checked payload
+    # Sending a CRC string
 
-    # rx() returns undef until a whole, CRC-valid frame has arrived; call it in
-    # a loop (see the worked example under "CRC FRAMING")
-    my $msg = $s->rx('<', '>');
+    $s->tx('Just Another Perl Hacker!', '<', '>');
 
-    my $checksum = $s->crc("temp=23.5C");   # CRC-16 of an arbitrary string
+    # Receiving a CRC string
 
-    # --- housekeeping ---
+    my $msg;
 
-    my $waiting = $s->avail;   # bytes waiting to be read
-    $s->flush;                 # discard buffered input/output
+    until (defined $msg) {
+        $msg = $s->rx('<', '>') if $s->avail;
+    }
+
+    print "$msg\n";        # Just Another Perl Hacker!
+
+    # Check what the CRC checksum was
+
+    my $checksum = $s->crc("Just Another Perl Hacker!");
+
+    # Housekeeping
+
+    my $waiting = $s->avail;   # Bytes waiting to be read
+    $s->flush;                 # Discard buffered input/output
     $s->close;
 
 =head1 DESCRIPTION
